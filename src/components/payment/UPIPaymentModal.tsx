@@ -163,7 +163,7 @@
 
 import {
   X,
-  QrCode,
+  // QrCode,
   IndianRupee,
   ArrowLeft,
   Copy,
@@ -197,12 +197,13 @@ const UPIPaymentModal = ({
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [showUpload, setShowUpload] = useState(false);
+  const now = new Date();
 
   const generateUPIUrl = () => {
     const params = new URLSearchParams({
       pa: upiId,
       pn: (receiverName ?? "UPI Receiver").replace(/[^a-zA-Z0-9 ]/g, ""),
-      am: amount.toFixed(2),
+      am: (amount ?? 0).toFixed(2),
       tr: transactionRef,
       cu: "INR",
       tn: `Maintenance Payment - ${transactionRef}`
@@ -299,7 +300,7 @@ const UPIPaymentModal = ({
                   <div className="flex justify-center items-center gap-1">
                     <IndianRupee className="h-8 w-8 text-primary" />
                     <span className="text-4xl font-bold text-primary">
-                      {amount.toLocaleString("en-IN")}
+                      {(amount ?? 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                 </div>
@@ -357,6 +358,8 @@ const UPIPaymentModal = ({
                 <PaymentScreenshotUpload
                   onUpload={handleUpload}
                   onSkip={handleSkip}
+                  month={now.getMonth() + 1}   // JS months are 0-based
+                  year={now.getFullYear()}
                 />
               </motion.div>
             )}

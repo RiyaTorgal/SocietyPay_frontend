@@ -42,26 +42,6 @@ const Profile = () => {
     }
   }, [user]);
 
-  // useEffect(() => {
-  //   const fetchPayments = async () => {
-  //     if (!user) return;
-  //     try {
-  //       setLoadingPayments(true);
-  //       const res = await fetch("http://localhost:5000/api/payments/my", {
-  //         credentials: "include", // if you use cookies
-  //       });
-  //       const data = await res.json();
-  //       setPayments(data);
-  //     } catch (error) {
-  //       console.error("Failed to fetch payments:", error);
-  //     } finally {
-  //       setLoadingPayments(false);
-  //     }
-  //   };
-
-  //   fetchPayments();
-  // }, [user]);
-
   useEffect(() => {
     if (!user) return;
 

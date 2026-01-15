@@ -14,15 +14,20 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground shadow-md">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo & Brand */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-            <Building2 className="h-6 w-6 text-accent-foreground" />
-          </div>
-          <div className="leading-tight">
-            <h1 className="text-lg font-semibold text-primary-foreground">SocietyPay</h1>
-            {/* <p className="text-xs text-primary-foreground/70">Flat {flatNumber}</p> */}
-          </div>
-        </div>
+        <Link to="/">
+          <Button variant="default">
+            {/* <User className="h-5 w-5" /> */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <Building2 className="h-6 w-6 text-accent-foreground" />
+              </div>
+              <div className="leading-tight">
+                <h1 className="text-lg font-semibold text-primary-foreground">SocietyPay</h1>
+                {/* <p className="text-xs text-primary-foreground/70">Flat {flatNumber}</p> */}
+              </div>
+            </div>
+          </Button>
+        </Link>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">

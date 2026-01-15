@@ -1,186 +1,237 @@
-import { useState, useCallback } from "react";
-import { Upload, X, Image, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Upload, CheckCircle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
+import { AxiosError } from 'axios';
 
-interface PaymentScreenshotUploadProps {
-  onUpload: (file: File) => void;
-  onSkip: () => void;
+interface PaymentUploadProps {
+  month: number;
+  year: number;
+  amount: number;
+  onSuccess?: () => void;
 }
 
-const PaymentScreenshotUpload = ({ onUpload, onSkip }: PaymentScreenshotUploadProps) => {
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+const PaymentUpload = ({ month, year, amount, onSuccess }: PaymentUploadProps) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [upiTransactionId, setUpiTransactionId] = useState('');
+  const { toast } = useToast();
+  const { token } = useAuth();
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ 
+        title: 'Invalid File', 
+        description: 'Please select an image file', 
+        variant: 'destructive' 
+      });
+      return;
     }
-  }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ 
+        title: 'File Too Large', 
+        description: 'Max 5MB', 
+        variant: 'destructive' 
+      });
+      return;
     }
-  }, []);
 
-  const handleFile = (file: File) => {
-    if (file.type.startsWith("image/")) {
-      setUploadedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPreviewUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const uploadToBackend = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post<{ publicUrl: string }>('/upload-payment', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.publicUrl;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new Error(error.response?.data?.error || error.message);
+      }
+      throw error;
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+  const handleSubmitPayment = async () => {
+    if (!selectedFile) {
+      toast({ 
+        title: 'Missing Screenshot', 
+        description: 'Please upload a screenshot', 
+        variant: 'destructive' 
+      });
+      return;
     }
-  };
 
-  const removeFile = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
+    if (!upiTransactionId.trim()) {
+      toast({ 
+        title: 'Missing Transaction ID', 
+        description: 'Enter UPI transaction ID', 
+        variant: 'destructive' 
+      });
+      return;
     }
-    setUploadedFile(null);
-    setPreviewUrl(null);
-  };
 
-  const handleSubmit = () => {
-    if (uploadedFile) {
-      onUpload(uploadedFile);
+    try {
+      setIsUploading(true);
+
+      // 1️⃣ Upload screenshot to backend/storage
+      const imageUrl = await uploadToBackend(selectedFile);
+
+      // 2️⃣ Call /initiate to create/update PENDING payment with transactionId
+      const initiateRes = await api.post('/payments/initiate', {
+        month,
+        year,
+        img: imageUrl,
+        paymentMode: 'UPI',
+      });
+
+      const paymentId = initiateRes.data.payment.id;
+
+      // 3️⃣ Call /confirm to add upiTransactionId
+      await api.post('/payments/confirm', {
+        paymentId,
+        upiTransactionId,
+        img: imageUrl, // Include img again in case it wasn't set in initiate
+      });
+
+      toast({ 
+        title: 'Success', 
+        description: 'Payment screenshot uploaded successfully!' 
+      });
+
+      // Reset form
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setUpiTransactionId('');
+
+      if (onSuccess) onSuccess();
+
+    } catch (error) {
+      let message = 'Failed to submit payment';
+      if (error instanceof Error) message = error.message;
+      toast({ 
+        title: 'Error', 
+        description: message, 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
-    <div className="space-y-4 p-5">
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-semibold text-card-foreground">Upload Payment Screenshot</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Upload a screenshot of your payment confirmation for verification
-        </p>
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Submit Payment</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="p-4 bg-muted rounded-lg">
+          <p className="text-sm text-muted-foreground">Amount to Pay</p>
+          <p className="text-2xl font-bold">₹{(amount || 0).toLocaleString()}</p>
+        </div>
 
-      <AnimatePresence mode="wait">
-        {!uploadedFile ? (
-          <motion.div
-            key="dropzone"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            className={`
-              relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200
-              ${dragActive 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50 hover:bg-secondary/30"
-              }
-            `}
-          >
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleInputChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            
-            <div className="flex flex-col items-center gap-3">
-              <div className={`
-                p-4 rounded-full transition-colors
-                ${dragActive ? "bg-primary/10" : "bg-secondary"}
-              `}>
-                <Upload className={`h-8 w-8 ${dragActive ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
-              <div>
-                <p className="font-medium text-card-foreground">
-                  {dragActive ? "Drop your image here" : "Drag & drop or click to upload"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PNG, JPG or JPEG (max 10MB)
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="preview"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="relative bg-secondary/30 rounded-xl p-4"
-          >
-            <button
-              onClick={removeFile}
-              className="absolute top-2 right-2 p-1.5 bg-destructive/10 hover:bg-destructive/20 rounded-full transition-colors"
-            >
-              <X className="h-4 w-4 text-destructive" />
-            </button>
-            
-            <div className="flex items-center gap-4">
-              {previewUrl ? (
-                <div className="w-20 h-20 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
-                  <img 
-                    src={previewUrl} 
-                    alt="Payment screenshot" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-20 h-20 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                  <Image className="h-8 w-8 text-muted-foreground" />
-                </div>
-              )}
-              
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-card-foreground truncate">
-                  {uploadedFile.name}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-                <div className="flex items-center gap-1 text-accent mt-1">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Ready to submit</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <div className="space-y-2">
+          <Label htmlFor="transactionId">UPI Transaction ID</Label>
+          <Input
+            id="transactionId"
+            placeholder="Enter UPI transaction ID"
+            value={upiTransactionId}
+            onChange={(e) => setUpiTransactionId(e.target.value)}
+            disabled={isUploading}
+          />
+        </div>
 
-      <div className="flex gap-3 pt-2">
+        <div className="space-y-2">
+          <Label htmlFor="screenshot">Payment Screenshot</Label>
+          <div className="border-2 border-dashed rounded-lg p-6 text-center">
+            {previewUrl ? (
+              <div className="space-y-4">
+                <img 
+                  src={previewUrl} 
+                  alt="Preview" 
+                  className="max-h-64 mx-auto rounded-lg border" 
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                  }}
+                  disabled={isUploading}
+                >
+                  Change Image
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+                <label htmlFor="screenshot">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    asChild 
+                    disabled={isUploading}
+                  >
+                    <span className="cursor-pointer">Choose File</span>
+                  </Button>
+                </label>
+                <Input
+                  id="screenshot"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  disabled={isUploading}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Upload payment screenshot (Max 5MB)
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <Button
-          variant="outline"
-          size="lg"
-          className="flex-1"
-          onClick={onSkip}
+          className="w-full"
+          onClick={handleSubmitPayment}
+          disabled={isUploading || !selectedFile || !upiTransactionId.trim()}
         >
-          Skip
+          {isUploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+              Submitting...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" /> 
+              Submit Payment
+            </>
+          )}
         </Button>
-        <Button
-          variant="action"
-          size="lg"
-          className="flex-1"
-          onClick={handleSubmit}
-          disabled={!uploadedFile}
-        >
-          Submit
-        </Button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
-export default PaymentScreenshotUpload;
+export default PaymentUpload;
