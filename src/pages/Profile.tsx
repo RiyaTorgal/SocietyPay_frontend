@@ -15,7 +15,7 @@ interface Payment {
   amount: number;
   status: "PENDING" | "PAID" | "FAILED";
   paidAt?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 

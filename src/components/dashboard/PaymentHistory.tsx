@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Payment {
   id: string;
   amount: number;
+  paidAt: string;
   createdAt: string;
   transactionId: string | null;
   status: "PAID" | "PENDING" | "FAILED";
@@ -64,7 +65,8 @@ const PaymentHistory = () => {
           payments.map((payment) => (
             <PaymentHistoryItem
               key={payment.id}
-              date={new Date(payment.createdAt).toLocaleDateString()}
+              // date={new Date(payment.paidAt).toLocaleDateString()}
+              date={new Date(payment.paidAt ?? payment.createdAt).toLocaleDateString()}
               amount={payment.amount}
               receiptNumber={payment.transactionId || "N/A"}
               status={payment.status || "PENDING"}
