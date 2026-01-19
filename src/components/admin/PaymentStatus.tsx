@@ -71,11 +71,25 @@ const PaymentStatus = () => {
     fetchAllPayments();
   }, []);
 
-  const fetchAllPayments = async () => {
+    const fetchAllPayments = async () => {
     try {
       setIsLoading(true);
       const response = await api.get('/payments/all');
-      setPayments(response.data);
+      
+      // Sort payments: FAILED first, then PENDING, then PAID
+      // const sortedPayments = response.data.sort((a: Payment, b: Payment) => {
+      //   const statusOrder = { PAID: 0, PENDING: 1, FAILED: 2 };
+      //   return statusOrder[a.status] - statusOrder[b.status];
+      // });
+          
+      // Sort payments by flat number
+      const sortedPayments = response.data.sort((a: Payment, b: Payment) => {
+        const flatA = parseInt(a.flat.flatNumber.replace(/\D/g, '')) || 0;
+        const flatB = parseInt(b.flat.flatNumber.replace(/\D/g, '')) || 0;
+        return flatA - flatB;
+      });
+      
+      setPayments(sortedPayments);
     } catch (error) {
       console.error('Error fetching payments:', error);
       toast({

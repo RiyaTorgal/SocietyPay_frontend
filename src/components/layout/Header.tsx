@@ -1,6 +1,12 @@
-import { Building2, User } from "lucide-react";
+import { 
+Building2, 
+User, 
+// Mail 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+// import { useEffect } from "react";
 
 // interface HeaderProps {
 //   userName?: string;
@@ -10,10 +16,14 @@ import { Link } from "react-router-dom";
 //{ userName = "Resident", flatNumber = "A-101" }: HeaderProps
 
 const Header = () => {
+  const { user } = useAuth();
+
+    
   return (
     <header className="sticky top-0 z-50 w-full bg-primary text-primary-foreground shadow-md">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo & Brand */}
+        
         <Link to="/">
           <Button variant="default">
             <div className="flex items-center gap-3">
@@ -32,6 +42,17 @@ const Header = () => {
           {/* <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
             <Bell className="h-5 w-5" />
           </Button> */}
+          {user && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-foreground/10">
+              {/* <User className="h-4 w-4" /> */}
+              <span className="text-sm font-medium">Welcome back {user.name}!</span>
+            </div>
+          )}
+          {/* <Link to="/inbox">
+            <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
+              <Mail className="h-5 w-5" />
+            </Button>
+          </Link> */}
           <Link to="/profile">
             <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
               <User className="h-5 w-5" />

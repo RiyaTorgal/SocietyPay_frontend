@@ -18,12 +18,10 @@ interface Payment {
   createdAt?: string;
 }
 
-
 const Profile = () => {
   const navigate = useNavigate();
   const { user, logout, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  // const [payments, setPayments] = useState<any[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [editData, setEditData] = useState({
@@ -34,6 +32,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('User data:', user); 
       setEditData({
         name: user.name,
         email: user.email,
@@ -78,7 +77,6 @@ const Profile = () => {
     fetchPayments();
   }, [user]);
 
-
   const handleSave = async () => {
     // TODO: Implement update profile API call
     setIsEditing(false);
@@ -111,12 +109,12 @@ const Profile = () => {
     .join("")
     .toUpperCase();
 
-    const totalPaid = payments
+  const totalPaid = payments
     .filter((p) => p.status === "PAID")
     .reduce((sum, p) => sum + p.amount, 0);
 
   const pendingDues = payments
-    .filter((p) => p.status === "PENDING")
+    .filter((p) => p.status === "PENDING" || p.status === "FAILED")
     .reduce((sum, p) => sum + p.amount, 0);
 
   const lastPayment = payments
@@ -129,10 +127,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        userName={user.name} 
-        flatNumber={user.flat?.flatNumber || "N/A"} 
-      />
+      <Header />
       
       <main className="container py-6 space-y-6">
         {/* Profile Header */}
@@ -150,25 +145,6 @@ const Profile = () => {
                 <p className="text-muted-foreground">
                   {user.flat ? `Flat ${user.flat.flatNumber}` : "No flat assigned"} • {user.role}
                 </p>
-              </div>
-              <div className="flex gap-2 pb-2">
-                {!isEditing ? (
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="outline" size="sm" onClick={handleCancel}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button variant="default" size="sm" onClick={handleSave}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                  </>
-                )}
               </div>
             </div>
           </CardContent>
@@ -211,6 +187,23 @@ const Profile = () => {
                     />
                   ) : (
                     <p className="text-foreground">{user.email}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  {isEditing ? (
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={editData.phone}
+                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                    />
+                  ) : (
+                    <p className="text-foreground">{user.phone}</p>
                   )}
                 </div>
               </div>
@@ -266,8 +259,9 @@ const Profile = () => {
                   <p className="text-foreground">
                     {user.createdAt 
                       ? new Date(user.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
                           month: 'long', 
-                          year: 'numeric' 
+                          day: 'numeric'
                         })
                       : 'N/A'}
                   </p>
@@ -277,36 +271,6 @@ const Profile = () => {
           </Card>
 
           {/* Payment Summary */}
-          {/* <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Payment Summary
-              </CardTitle>
-              <CardDescription>Your payment overview</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Paid (This Year)</span>
-                <span className="text-foreground font-semibold">₹0</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Pending Dues</span>
-                <span className="text-destructive font-semibold">₹0</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Last Payment</span>
-                <span className="text-foreground">N/A</span>
-              </div>
-              <Link to="/">
-                <Button variant="outline" className="w-full mt-2">
-                  View Payment History
-                </Button>
-              </Link>
-            </CardContent>
-          </Card> */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -344,18 +308,13 @@ const Profile = () => {
                     <span>Last Payment</span>
                     <span>
                       {lastPayment
-                        ? new Date(
-                            lastPayment.paidAt!
-                          ).toLocaleDateString()
+                        ? new Date(lastPayment.paidAt!).toLocaleDateString()
                         : "N/A"}
                     </span>
                   </div>
 
                   <Link to="/payments/history">
-                    <Button
-                      variant="outline"
-                      className="w-full mt-2"
-                    >
+                    <Button variant="outline" className="w-full mt-2">
                       View Payment History
                     </Button>
                   </Link>
@@ -371,14 +330,25 @@ const Profile = () => {
               <CardDescription>Manage your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Manage Payment Methods
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Mail className="h-4 w-4 mr-2" />
-                Notification Preferences
-              </Button>
+              <div className="flex gap-2 pb-2">
+                {!isEditing ? (
+                  <Button variant="outline" className="w-full justify-start" onClick={() => setIsEditing(true)}>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" onClick={handleCancel}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button variant="default" size="sm" onClick={handleSave}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                  </>
+                )}
+              </div>
               <Separator />
               <Button 
                 variant="destructive" 

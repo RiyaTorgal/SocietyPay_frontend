@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import Header from "../layout/Header";
+import Header from "../components/layout/Header";
 
 const faqs = [
   {
