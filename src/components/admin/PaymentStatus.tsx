@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReceiptDialog from "@/components/admin/PaymentReceiptModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, Clock, Receipt, Send, Download, Image, Check } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Receipt, Send, Download, Image, Check, ReceiptIndianRupee } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -61,6 +62,7 @@ const PaymentStatus = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedReceiptPayment, setSelectedReceiptPayment] = useState<Payment | null>(null);
   const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -226,9 +228,9 @@ const PaymentStatus = () => {
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to send reminder",
-        variant: "destructive",
+        title: "Info",
+        description: "Message sending is currently under development",
+        variant:"default"
       });
     }
   };
@@ -267,37 +269,41 @@ const PaymentStatus = () => {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Payment Status - {monthNames[currentMonth - 1]} {currentYear}
-              </CardTitle>
-              <div className="flex gap-4 mt-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                  <span className="text-sm text-muted-foreground">Paid: {paidCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-amber-500" />
-                  <span className="text-sm text-muted-foreground">Pending: {pendingCount}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-destructive" />
-                  <span className="text-sm text-muted-foreground">Failed: {failedCount}</span>
+          <div className=" items-center justify-between">
+            <div className="flex sm:flex-row flex-col  justify-between w-full">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Payment Status - {monthNames[currentMonth - 1]} {currentYear}
+                </CardTitle>
+                <div className="flex gap-4 mt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                    <span className="text-sm text-muted-foreground">Paid: {paidCount}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-amber-500" />
+                    <span className="text-sm text-muted-foreground">Pending: {pendingCount}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-destructive" />
+                    <span className="text-sm text-muted-foreground">Failed: {failedCount}</span>
+                  </div>
                 </div>
               </div>
+              <div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                  onClick={handleExportCSV}
+                  disabled={isExporting || payments.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  {isExporting ? 'Exporting...' : 'Export CSV'}
+                </Button>
+              </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-2"
-              onClick={handleExportCSV}
-              disabled={isExporting || payments.length === 0}
-            >
-              <Download className="h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Export CSV'}
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -312,8 +318,9 @@ const PaymentStatus = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tenant</TableHead>
-                    <TableHead>Flat</TableHead>
+                    <TableHead>Tenant Name</TableHead>
+                    <TableHead>Owner Name</TableHead>
+                    <TableHead>Flat No</TableHead>
                     <TableHead>Month</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
@@ -327,7 +334,14 @@ const PaymentStatus = () => {
                   {payments.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-medium">
-                        {payment.flat.user?.name || payment.flat.ownerName}
+                        {payment.flat.user?.name || (
+                          <span className="text-muted-foreground">No tenant</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {payment.flat.ownerName || (
+                          <span className="text-muted-foreground">No owner</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-mono">
                         {payment.flat.flatNumber}
@@ -373,7 +387,7 @@ const PaymentStatus = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {payment.status !== "PAID" && (
+                        {payment.status !== "PAID" ? (
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -382,6 +396,16 @@ const PaymentStatus = () => {
                           >
                             <Send className="h-3 w-3" />
                             Remind
+                          </Button>
+                        ):(
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => setSelectedReceiptPayment(payment)}
+                          >
+                            <ReceiptIndianRupee className="h-3 w-3" />
+                            View
                           </Button>
                         )}
                       </TableCell>
@@ -393,6 +417,13 @@ const PaymentStatus = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Receipt Dialog */}
+      <ReceiptDialog
+        payment={selectedReceiptPayment}
+        isOpen={!!selectedReceiptPayment}
+        onClose={() => setSelectedReceiptPayment(null)}
+      />
 
       {/* Image Preview Dialog with Confirm and Download Buttons */}
       <Dialog open={!!selectedPayment} onOpenChange={() => setSelectedPayment(null)}>
