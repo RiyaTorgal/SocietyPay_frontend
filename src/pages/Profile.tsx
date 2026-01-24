@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import Header from "@/components/layout/Header";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import PaymentHistoryModal from "@/components/dashboard/PaymentHistoryModal";
 
 interface Payment {
   id: string;
@@ -23,6 +24,7 @@ const Profile = () => {
   const { user, logout, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [editData, setEditData] = useState({
     name: user?.name || "",
@@ -313,11 +315,25 @@ const Profile = () => {
                     </span>
                   </div>
 
-                  <Link to="/payments/history">
+                  {/* <Link to="/payments/history">
                     <Button variant="outline" className="w-full mt-2">
                       View Payment History
                     </Button>
-                  </Link>
+                  </Link> */}
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2"
+                    onClick={() => setShowPaymentModal(true)}
+                  >
+                    View Payment History
+                  </Button>
+
+                  <PaymentHistoryModal
+                    open={showPaymentModal}
+                    onOpenChange={setShowPaymentModal}
+                    payments={payments}
+                    loading={loadingPayments}
+                  />
                 </>
               )}
             </CardContent>
